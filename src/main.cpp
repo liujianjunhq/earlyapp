@@ -77,6 +77,8 @@ int main(int argc, char* argv[])
     int ret;
     char buf[8];
     bool bNeedResumeToRVC = false; 
+    struct timespec previous_loop_time;
+    struct timespec current_loop_time;
 
 #ifdef USE_DMESGLOG
      dmesgLogInit();
@@ -214,14 +216,33 @@ int main(int argc, char* argv[])
         handleProgramLaunchingError(e);
     }
 
+
     /*inject back the event to avoid missing event */
     if(pEv != nullptr)
         evListener.injectEvent(pEv->toEnum());
+
+//    clock_gettime(CLOCK_REALTIME, &previous_loop_time);
+//    clock_gettime(CLOCK_REALTIME, &current_loop_time);
+//    fprintf(stderr, "Before loop: previous_loop_time is %d, current_loop_time is %d \n", previous_loop_time.tv_sec, current_loop_time.tv_sec);
+
     /*
       Main(device) loop.
      */
     do
     {
+        clock_gettime(CLOCK_REALTIME, &current_loop_time);
+//	if((current_loop_time.tv_sec - previous_loop_time.tv_sec) >= 5)
+//	{
+//		if(bNeedResumeToRVC)
+//		{
+//			evListener.injectEvent(earlyapp::CBCEvent::eGEARSTATUS_REVERSE);
+//			printf("When resume, inject eGEARSTATUS_REVERSE to RVC buf=%d ret=%d \n", buf[0], ret);
+//			bNeedResumeToRVC = false;
+//		}
+//		fprintf(stderr, "In loop: previous_loop_time is %d, current_loop_time is %d \n", previous_loop_time.tv_sec, current_loop_time.tv_sec);
+//	}
+
+//	previous_loop_time = current_loop_time; 
 
         //LINF_(TAG, "In main thread");
 	boost::this_thread::sleep(
@@ -241,15 +262,31 @@ int main(int argc, char* argv[])
                 {
                     // Going to suspend
                     // Inject forward gear signal to transit to Idle to close the camera streaming.
-                    evListener.injectEvent(earlyapp::CBCEvent::eGEARSTATUS_FORWARD);
+                    devCtrl.stopAllDevices();
+		    evListener.injectEvent(earlyapp::CBCEvent::eGEARSTATUS_FORWARD);
                     printf("When suspend, inject eGEARSTATUS_FORWARD to idle, buf=%d ret=%d \n", buf[0], ret);
-                    lseek(fd, 0x00, SEEK_SET);
-                    buf[0] = 0x30;
-                    write(fd, buf, 1);
+                    //lseek(fd, 0x00, SEEK_SET);
+                    //buf[0] = 0x30;
+                    //write(fd, buf, 1);
 		    bNeedResumeToRVC = true;
 	        }
-	        else if((buf[0] == 0x31) && bNeedResumeToRVC)
+		if(((buf[0] == 0x32) && (ssTracker.currentState() == earlyapp::SystemStatusTracker::eSTATE_IDLE)) && bNeedResumeToRVC)
+		{
+			printf("When suspend, wait until eSTATE_IDLE\n");
+			lseek(fd, 0x00, SEEK_SET);
+			buf[0] = 0x30;
+			write(fd, buf, 1);
+		}
+		if((buf[0] == 0x32) && !bNeedResumeToRVC)
+		{
+                    lseek(fd, 0x00, SEEK_SET);
+		    buf[0] = 0x30;
+		    write(fd, buf, 1);
+
+		}
+	        if((buf[0] == 0x31) && bNeedResumeToRVC)
 	        {
+		    devCtrl.init();
                     evListener.injectEvent(earlyapp::CBCEvent::eGEARSTATUS_REVERSE);
 		    printf("When resume, inject eGEARSTATUS_REVERSE to RVC buf=%d ret=%d \n", buf[0], ret);
 		    lseek(fd, 0x00, SEEK_SET);

@@ -32,8 +32,6 @@ SET(CONF_FILES
     ias-earlyapp.service
     ias-earlyapp-setup.service
     ias-earlyapp-wait.service
-    earlyapp_resume.service
-    earlyapp_suspend.service
     earlyapp-setup-cbc.service
     earlyapp-setup-render.service
     earlyapp-setup-aud.service
@@ -63,6 +61,10 @@ SET(SCRIPT_FILES
     resume_sync
     mem_hot_add.sh)
 
+# Script file for suspend/resume.
+SET(SCRIPT_SUSPEND
+    early_s3.sh)
+
 # Install earlyapp.service
 INSTALL(FILES ${EAS_SRC}
     DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/systemd/system/)
@@ -78,3 +80,7 @@ INSTALL(PROGRAMS ${SCRIPT_FILES}
 # Install udev rules.
 INSTALL(FILES 50-earlyapp.rules
     DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/udev/rules.d/)
+
+# Install suspend/resume script
+INSTALL(PROGRAMS ${SCRIPT_SUSPEND}
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/systemd/system-sleep/)
